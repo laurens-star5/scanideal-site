@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,300&family=Hanken+Grotesk:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#EFEAE1;overflow:hidden}
+svg{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<svg id="m"></svg>
+<script>
+(async () => {
+  const svg = d3.select('#m');
+  const W = innerWidth, H = innerHeight;
+  svg.attr('viewBox', `0 0 ${W} ${H}`);
+  const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json')).json();
+  const all = topojson.feature(topo, topo.objects.countries).features;
+  const fr = all.find(f => f.id === '250');
+  const mainland = { type: 'Feature', geometry: { type: 'MultiPolygon', coordinates: (fr.geometry.type === 'MultiPolygon' ? fr.geometry.coordinates : [fr.geometry.coordinates]).filter(p => { const c = d3.geoCentroid({ type: 'Polygon', coordinates: p }); return c[0] > -6 && c[0] < 10 && c[1] > 41; }) } };
+  const pad = Math.min(W, H) * 0.1;
+  const proj = d3.geoConicConformal().parallels([44, 49]).rotate([-3, 0]).fitExtent([[pad, pad], [W - pad, H - pad]], mainland);
+  const path = d3.geoPath(proj);
+  const neighbours = all.filter(f => ['056', '276', '756', '380', '724', '442', '826', '528', '040', '020'].includes(f.id));
+  svg.append('g').selectAll('path').data(neighbours).join('path').attr('d', path).attr('fill', 'none').attr('stroke', 'rgba(28,27,25,.12)').attr('stroke-width', .8);
+  svg.append('path').datum(mainland).attr('d', path).attr('fill', '#E4DCCF').attr('stroke', '#1C1B19').attr('stroke-width', 1);
+  // Copenhague → siège
+  const cph = proj([12.57, 55.68]), hq = proj([2.80, 48.40]);
+  if (cph[0] < W && cph[1] > 0) {}
+  const [x, y] = hq;
+  svg.append('circle').attr('cx', x).attr('cy', y).attr('r', 18).attr('fill', 'none').attr('stroke', '#9A7448').attr('stroke-width', 1);
+  svg.append('circle').attr('cx', x).attr('cy', y).attr('r', 4.5).attr('fill', '#1C1B19');
+  const g = svg.append('g').attr('transform', `translate(${x + 28},${y - 6})`);
+  g.append('text').text('Scanideal').attr('font-family', 'Newsreader, serif').attr('font-style', 'italic').attr('font-size', 22).attr('fill', '#1C1B19');
+  g.append('text').text('CHAMPAGNE-SUR-SEINE (77)').attr('y', 20).attr('font-family', 'Hanken Grotesk, sans-serif').attr('font-size', 10).attr('letter-spacing', '.18em').attr('fill', '#6B655C');
+  svg.append('text').text('FRANCE ENTIÈRE').attr('x', pad * .5).attr('y', H - pad * .5).attr('font-family', 'Hanken Grotesk, sans-serif').attr('font-size', 10).attr('letter-spacing', '.24em').attr('fill', '#6B655C');
+})();
+</script>
+</body>
+</html>
